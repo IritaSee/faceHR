@@ -7,6 +7,8 @@ If you want a sample video to test it on, you can download the one we used in th
 ## How to use `stattohr.py`
 
 - You’ll probably need to install a few Python libraries to make this work, see the `import` statements at the top of the script.
+    - I have made it easier, just put `conda create --name facehr --file environment.txt` to your terminal, and then `conda activate facehr`
+    
 - Run it with `python stattohr.py -f steve-face-hr.mp4` to extract the heart rate from a file.
 - It will start by displaying random frames from the video so you can pick a skin colour. Click somewhere on the face, and then press A to show the ‘chroma key’ it’s using, which will display a terrifying black and white image like this: ![](steve-face-terrifying-chroma.png) This is looking good—it’s selected most of Steve’s skin!
 - Press O for ‘OK’, and it will go through taking the average of the skin-coloured pixels and storing it for processing later. You can press A again which has the dual benefit of making it less terrifying to watch, and speeding things up a bit because it can just display the straight video.
