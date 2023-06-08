@@ -15,7 +15,7 @@ buffer_size = 1024
 #######################
 ### /USER VARIABLES ###
 #######################
-TOTAL_FRAMES = 1000
+
 # A few other variables
 display_mode = 'normal'
 fps_display = True
@@ -226,7 +226,6 @@ if(args.filename is None):
     # Override default frame size for capture device, which is often 640x480
     vid.set(cv.CAP_PROP_FRAME_WIDTH, video_width)
     vid.set(cv.CAP_PROP_FRAME_HEIGHT, video_height)
-    total_frames = vid.get(cv.CAP_PROP_FRAME_COUNT)
     # So we're using a capture device, not a file
     is_video_file = False
 else:
@@ -279,74 +278,38 @@ if is_video_file:
             vid.set(1, 0)
             break
         keypress_action(keypress)
-else:
-    while True:
-        ret, frame = vid.read()
-        frame_cp = cp.array(cv.cvtColor(frame, cv.COLOR_BGR2YUV), dtype=cp.float32)
-        if display_mode == 'alpha_channel':
-            cv.imshow(
-                'StattoBPM',
-                chroma_key_display(frame_cp, skin_chroma)
-            )
-        else:
-            cv.imshow(
-                'StattoBPM',
-                frame
-            )
-        keypress = cv.waitKey(100)
-        if keypress == ord('o'):
-            print('OK, chroma value set! Let\'s compute!')
-            # Set to the first frame so the whole video gets processed
-            vid.set(1, 0)
-            break
-        keypress_action(keypress)
+
 # First loop: analysis
 print('First pass: analysing video...')
 i = 0
 t0 = time.time()
-if not is_video_file: 
-    fourcc = cv.VideoWriter_fourcc(*'DVIX')
-    out = cv.VideoWriter('output.avi',fourcc, 30, (640,480))
 while True:
     # Get a frame from the video capture device or file
     ret, frame = vid.read()
-    #out.write(frame) 
     # Store the current time in the buffer
     times.append(time.time() - t0)
     # And calculate the fps, either of processing or capture depending on device
     # (Don't calculate on the first pass through the loop to avoid dividing by zero)
     if i > 0:
-        fps_calc = len(times) / (times[-1] - times[0]) #normalization
+        fps_calc = len(times) / (times[-1] - times[0])
     # If we're using a capture device, the fps is given by the above, rather than specified beforehand
     if not is_video_file:
-        if i==0:
-            fps = ret
-        else:
-            fps = fps_calc
-
-        total_frames = TOTAL_FRAMES+1
+        fps = fps_calc
         t = times[-1]
-        
     # If we're using a video file, then the time we are through is frame / fps
     else:
         t = i/fps
     if i > 0 and fps_display and i % 100 == 0:
         print('Frame', i, 'of', int(total_frames), '  |  FPS:', np.round_(fps_calc, 3))
     # If ret is false, it usually means 'video file is over', but it's an error either way, so exit the loop
-    if is_video_file:
-        if not ret:
-            print('Pass 1 complete!')
-            break
-    else:
-        if i>TOTAL_FRAMES:
-            print('Pass 1 complete!')
-            break
+    if not ret:
+        print('Pass 1 complete!')
+        break
 
     frame_cp = cp.array(frame, dtype=cp.float32)
     frame_yuv = cp.array(cv.cvtColor(frame, cv.COLOR_BGR2YUV), dtype=cp.float32)
     skin_key = chroma_key(frame_yuv, skin_chroma)
     ppg_rgb.append(average_keyed(frame_cp, skin_key))
-    #print(average_keyed(frame_cp, skin_key))
     ppg_yuv.append(average_keyed(frame_yuv, skin_key))
 
     if display_mode == 'alpha_channel':
@@ -377,11 +340,9 @@ ppg_yuv_ma = magnify_colour_ma(
 # 'white', averaging RGB
 ppg_w_ma = cp.mean(ppg_rgb_ma, axis=1)
 
-if is_video_file:
-    outdir = 'output-data-' + args.filename
-else:
-    outdir = 'output-data-'+'/webcam'
 
+
+outdir = 'output-data-' + args.filename
 counter = 1
 mypath = outdir + '-' + str(counter)
 while os.path.exists(mypath):   
@@ -444,16 +405,12 @@ ax.set_ylabel('YUV')
 plt.show()
 
 # Reopen the video
-if is_video_file: 
-    vidame = args.filename
-else:
-   vidame = './output.avi'
-
+vid = cv.VideoCapture(args.filename)
 if vid.isOpened() == False:
-    print("Error opening video file " + vidame)
+    print("Error opening video file " + args.filename)
     exit()
 # So we're using a file, not a capture device
-# is_video_file = True ## used to be active but deactivated
+is_video_file = True
 
 # Second loop: adding stuff
 print('Second pass: saving results!')
@@ -481,14 +438,9 @@ while True:
     if i > 0 and fps_display and i % 100 == 0:
         print('Frame', i, 'of', int(total_frames), '  |  FPS:', np.round_(fps_calc, 3))
     # If ret is false, it usually means 'video file is over', but it's an error either way, so exit the loop
-    if is_video_file:
-        if not ret:
-            print('Pass 2 complete!')
-            break
-    else:
-        if i>TOTAL_FRAMES:
-            print('Pass 2 complete!')
-            break
+    if not ret:
+        print('Pass 2 complete!')
+        break
     #frame_rgb = cp.array(frame, dtype=cp.float32)
     frame_yuv = cp.array(cv.cvtColor(frame, cv.COLOR_BGR2YUV), dtype=cp.float32)
     skin_key = chroma_key(frame_yuv, skin_chroma)
